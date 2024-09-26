@@ -3,6 +3,10 @@
 #include <string>
 #include <sstream>
 #include <cmath>
+#include <algorithm>
+#include <vector>
+#include <random>
+#include <set>
 using namespace std;
 class ExprCalc
 {
@@ -12,6 +16,7 @@ public:
     ExprCalc(char ch = '#', string str = "") : endChar(ch) {}
     double ran(string str)
     {
+        str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
         return calcInfix(str);
     }
     bool isNumber(char ch)
@@ -60,7 +65,7 @@ public:
         }
         return 0;
     }
-    double calc(double left, double right, char ch)
+    double calc(double left, double right, char ch , int jis = 0)
     {
         switch (ch)
         {
@@ -75,9 +80,12 @@ public:
             {
                 return 0;
             }
-            else
+            else if(jis == 0)
             {
                 return left / right;
+            }
+            else if(jis != 0) {
+                return (int)left/(int)right;
             }
         case '%':
             return (fmod(left, right));
@@ -119,7 +127,7 @@ public:
         number += number_xiao;
         return number;
     }
-    double calcInfix(string str)
+    double calcInfix(string str, int jis = 0)
     {
         stack<double> data;
         stack<char> ops;
@@ -130,14 +138,28 @@ public:
         int i = 0; // 字符出现位置
         stringstream iss(str);
         iss >> ch;
-        while (ch != endChar)
+        while (true)
         {
-            if(ch == ' '){
+            if(ch == ' ' || ch == '\n'){
+                //i++;
                 continue;
             }
             if (!isNumber(ch))
             {
-                if (isp(ops.top()) < icp(ch))
+                if (isp(ops.top()) == icp(ch))
+                {
+                    char character = ops.top();
+                    ops.pop();
+                    if (character == '(')
+                    {
+                        iss >> ch;
+                        i++;
+                    }
+                    if(character == endChar) {
+                        break;
+                    }
+                }
+                else if (isp(ops.top()) < icp(ch))
                 {
                     ops.push(ch);
                     iss >> ch;
@@ -152,18 +174,8 @@ public:
                     data.pop();
                     char character = ops.top();
                     ops.pop();
-                    number = calc(left, right, character);
+                    number = calc(left, right, character,jis);
                     data.push(number);
-                }
-                else if (isp(ops.top()) == icp(ch))
-                {
-                    char character = ops.top();
-                    ops.pop();
-                    if (character == '(')
-                    {
-                        iss >> ch;
-                        i++;
-                    }
                 }
             }
             else
@@ -177,25 +189,111 @@ public:
                 }
             }
         }
-        double left, right;
-        right = data.top();
-        data.pop();
-        left = data.top();
-        data.pop();
-        char character = ops.top();
-        number = calc(left, right, character);
+        number = data.top();
         return number;
+    }
+    bool isString24Point(string str) {
+        double number = calcInfix(str, 1);
+        return (number == 24);
+    }
+    vector<int> getNumber() {
+        vector<int> card;
+        for(int i=1;i <= 13; ++i) {
+            for(int j=1; j <= 4; ++j) {
+                card.push_back(i);
+            }
+        }
+        set<int> number;
+        while(number.size() != 4) {
+            number.insert((rand()%52));
+        }
+        vector<int> aa;
+        for(auto i = number.begin();i != number.end();++i) {
+            aa.push_back(card[*i]);
+        }
+        return aa;
+    }
+    bool is24Point(vector<int>& number , int n, string str) {
+       if(n==4) {
+            if(isString24Point(str)) {
+                cout<<str<<" = 24"<<endl;
+                return true;
+            }
+            else {
+                // str.pop_back();
+                return false;
+            }
+        }
+        string strNumber[4];
+       
+        for(int i=0;i<4;++i) {
+            strNumber[i] = to_string(number[i]);
+        }
+        str+=strNumber[n];
+        if(3 == n) {           
+            return is24Point(number,n+1,str);
+        }
+        else {
+            string ops = "+-*/^";
+            for(char op : ops) {
+                str+=op;
+                if (is24Point(number, n + 1, str)) {
+                    return true;
+                }
+                str.pop_back();
+                str = '(' + str + ')';
+                str+=op;
+                if (is24Point(number, n + 1, str)) {
+                    return true;
+                }
+                str.pop_back();
+                str.erase(0, 1);       // 删除开头的括号
+                str.erase(str.size() - 1, 1);            
+            }
+        }
+       return false;
+    }
+    bool pailie(vector<int> number, int start) {
+        bool font = false;
+        if(start>=number.size()) {
+            string str = "";
+            if(is24Point(number,0,str)) {
+                font = true;
+                return true;
+            }
+        }
+        else {
+            for (int i = start; i < number.size(); i++) {
+            swap(number[start], number[i]); // 交换
+            pailie(number, start + 1); // 递归输出所有可能
+            
+            //输出一种可能后停止
+            // if(pailie(number,start+1)) {
+            //     return true;
+            // }
+            // if(pailie(number,start+1)) {
+            //     font = true;
+            // }
+            swap(number[start], number[i]); // 还原交换
+            }
+        }
+        return false;
+    }
+    bool is24Point(vector<int> number) {
+        return pailie(number,0);
     }
 };
 
 int main()
 {
-    while (true)
-    {
-        string str;
-        cin >> str;
-        ExprCalc ed('#');
-        cout << (ed.ran(str)) << endl;
+    srand(time(0));
+    int current = 10000;
+    int dangqian = 0;
+    ExprCalc aa;
+    for(int i=0;i<current;++i) {
+        if(aa.is24Point(aa.getNumber())) {
+            dangqian++;
+        }
     }
-    return 0;
+    cout<<(double)dangqian/(double)current<<endl;
 }
